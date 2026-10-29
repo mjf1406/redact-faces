@@ -1,0 +1,51 @@
+{
+  "name": "redact-faces",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Black out the faces of those who don't have photo permission. Runs in the browser; photos never leave the computer. Groups similar faces so you name each person once.",
+  "scripts": {
+    "dev": "bun scripts/copy-ort.mjs && vite",
+    "build": "tsc -b && vite build && bun scripts/check-dist-size.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "eslint . && prettier --check .",
+    "test": "vitest run",
+    "models:fetch": "bun scripts/fetch-models.mjs",
+    "check:dist-size": "bun scripts/check-dist-size.mjs",
+    "ort:copy": "bun scripts/copy-ort.mjs"
+  },
+  "dependencies": {
+    "comlink": "^4.4.2",
+    "dexie": "^4.4.7",
+    "dexie-react-hooks": "^4.4.0",
+    "onnxruntime-web": "^1.31.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-window": "^2.5.1",
+    "zod": "^4.6.7",
+    "zustand": "^5.0.16"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.6.6",
+    "@types/react": "18",
+    "@types/react-dom": "18",
+    "@types/react-window": "^2.0.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "eslint": "^10.13.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "fflate": "^0.8.3",
+    "jsdom": "^30.1.3",
+    "prettier": "^3.9.10",
+    "tailwindcss": "^4.3.3",
+    "typescript": "6",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

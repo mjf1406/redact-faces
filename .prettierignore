@@ -1,0 +1,8 @@
+dist
+node_modules
+models-large
+public/models
+public/ort
+bun.lock
+package-lock.json
+src/engine/models.manifest.json

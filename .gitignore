@@ -1,0 +1,13 @@
+node_modules
+dist
+models-large
+.env
+.env.*
+!.env.example
+*.local
+.DS_Store
+public/ort/*.wasm
+public/ort/*.mjs
+public/ort/manifest.json
+coverage
+.vite
