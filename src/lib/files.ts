@@ -34,27 +34,3 @@ export async function fileByRelPath(root: FileSystemDirectoryHandle, relPath: st
   const handle = await dir.getFileHandle(parts[parts.length - 1]);
   return handle.getFile();
 }
-
-export async function writeBlob(root: FileSystemDirectoryHandle, relPath: string, blob: Blob) {
-  const parts = relPath.split('/').filter(Boolean);
-  let dir = root;
-  for (let i = 0; i < parts.length - 1; i += 1) {
-    dir = await dir.getDirectoryHandle(parts[i], { create: true });
-  }
-  const handle = await dir.getFileHandle(parts[parts.length - 1], { create: true });
-  const writable = await handle.createWritable();
-  await writable.write(blob);
-  await writable.close();
-}
-
-export async function fileExists(root: FileSystemDirectoryHandle, relPath: string) {
-  try {
-    const parts = relPath.split('/').filter(Boolean);
-    let dir = root;
-    for (let i = 0; i < parts.length - 1; i += 1) dir = await dir.getDirectoryHandle(parts[i]);
-    await dir.getFileHandle(parts[parts.length - 1]);
-    return true;
-  } catch {
-    return false;
-  }
-}

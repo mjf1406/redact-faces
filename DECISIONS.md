@@ -35,7 +35,7 @@ The build notes in `face-recog.txt` called the product Consent Mask. The name in
 - A cluster name applies to the selected faces. With nothing selected, it applies to the whole cluster.
 - Import stores a backup face whose state was `suggested` as `unassigned`. The backup file does not include the suggested student. Manual regions are restored with no embedding.
 - Export stays disabled until every photo is `done`, including `error` and `unsupported`. An unscanned file might still contain someone who cannot be shown. Remove the photo from the project, or replace it and scan again, before exporting. “Export anyway…” is only offered when every photo is done and some faces are still unresolved.
-- The output folder is refused when it is the source folder, inside the source folder, or a parent of the source folder. The last case is extra: writing into a parent could still overwrite the originals.
+- Export downloads a zip of the new JPEGs and `redaction-log.csv`. It does not write into a folder, so the originals cannot be overwritten.
 - “Delete all data” deletes the IndexedDB database and reloads. The model cache is separate.
 
 ## What the UI claims

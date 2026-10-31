@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseBackup } from '../db/backup';
 import { defaultSettings } from './constants';
-import { canExport, canOverrideExport } from './exportGate';
+import { allowExport, canExport, canOverrideExport } from './exportGate';
 import { assertOutputOutsideSource, type DirLike } from './folderGuard';
 
 function dir(name: string, parent?: DirLike): DirLike {
@@ -46,6 +46,26 @@ describe('export gate', () => {
         faces: [{ id: 'f', state: 'safe', studentId: null }],
         students,
       }),
+    ).toBe(false);
+  });
+
+  it('lets an override export leave unresolved faces visible', () => {
+    const input = {
+      photos: [{ id: 'p', status: 'done' as const }],
+      faces: [{ id: 'f', state: 'unassigned' as const, studentId: null }],
+      students,
+    };
+    expect(allowExport(input, { override: true })).toBe(true);
+    expect(allowExport(input, { override: false })).toBe(false);
+    expect(
+      allowExport(
+        {
+          photos: [{ id: 'p', status: 'error' }],
+          faces: [{ id: 'f', state: 'unassigned', studentId: null }],
+          students,
+        },
+        { override: true },
+      ),
     ).toBe(false);
   });
 

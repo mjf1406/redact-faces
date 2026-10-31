@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import type { ExportSummary } from '../export/runExport';
+import type { FlowStep } from './steps';
 
-export type WizardStep =
-  'photos' | 'names' | 'guesses' | 'permission' | 'review' | 'export' | 'settings';
+export type ProjectScreen = 'home' | 'wizard';
+export type WizardStep = FlowStep | 'settings';
 
 export type ScanState = {
   running: boolean;
@@ -15,6 +16,7 @@ export type ScanState = {
 
 type UiState = {
   projectId: string | null;
+  screen: ProjectScreen;
   step: WizardStep;
   warnSlow: boolean;
   medianMs: number | null;
@@ -25,6 +27,7 @@ type UiState = {
   reviewFilter: 'all' | 'unresolved' | 'redactions' | 'errors';
   reviewIndex: number;
   setProject: (projectId: string | null) => void;
+  setScreen: (screen: ProjectScreen) => void;
   setStep: (step: WizardStep) => void;
   setWarn: (warnSlow: boolean, medianMs: number | null) => void;
   setDeviceLost: (deviceLost: string | null) => void;
@@ -46,6 +49,7 @@ const idleScan: ScanState = {
 
 export const useUi = create<UiState>((set) => ({
   projectId: null,
+  screen: 'home',
   step: 'photos',
   warnSlow: false,
   medianMs: null,
@@ -56,8 +60,15 @@ export const useUi = create<UiState>((set) => ({
   reviewFilter: 'all',
   reviewIndex: 0,
   setProject: (projectId) =>
-    set({ projectId, step: 'photos', selectedFaceIds: [], reviewIndex: 0 }),
-  setStep: (step) => set({ step }),
+    set({
+      projectId,
+      screen: 'home',
+      step: 'photos',
+      selectedFaceIds: [],
+      reviewIndex: 0,
+    }),
+  setScreen: (screen) => set(screen === 'home' ? { screen, step: 'photos' } : { screen }),
+  setStep: (step) => set(step === 'settings' ? { step } : { step, screen: 'wizard' }),
   setWarn: (warnSlow, medianMs) => set({ warnSlow, medianMs }),
   setDeviceLost: (deviceLost) => set({ deviceLost }),
   setLockMessage: (lockMessage) => set({ lockMessage }),

@@ -36,3 +36,15 @@ export function canOverrideExport(input: {
   const blockers = exportBlockers(input);
   return blockers.photosNotDone.length === 0 && blockers.unresolvedFaceIds.length > 0;
 }
+
+export function allowExport(
+  input: {
+    photos: readonly GatePhoto[];
+    faces: readonly GateFace[];
+    students: readonly GateStudent[];
+  },
+  opts: { override: boolean },
+) {
+  if (opts.override) return canOverrideExport(input) || canExport(input);
+  return canExport(input);
+}

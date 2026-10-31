@@ -2,7 +2,7 @@
 
 Black out the faces of those who don’t have photo permission. Runs in the browser; photos never leave the computer. Groups similar faces so you name each person once.
 
-A teacher points the app at a folder of class photos. It finds faces, groups people who look alike, and waits for a name and a consent choice. Export writes new JPEGs with solid black rectangles over anyone who has not been marked “yes.” The originals are never modified.
+A teacher points the app at a folder of class photos. It finds faces, groups people who look alike, and waits for a name and a consent choice. Export downloads a zip of new JPEGs with solid black rectangles over anyone who has not been marked “yes.” The originals are never modified.
 
 This tool only assists. The teacher is responsible for checking every photo before sharing it.
 

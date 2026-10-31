@@ -40,6 +40,10 @@ export function WrongStudent({
   const [target, setTarget] = useState(OWN);
   const others = students.filter((student) => student.id !== wrongStudentId);
   const count = faceIds.length;
+  const items = [
+    { value: OWN, label: 'Their own group' },
+    ...others.map((student) => ({ value: student.id, label: student.name })),
+  ];
 
   async function apply() {
     await placeFaces(projectId, faceIds, {
@@ -77,6 +81,7 @@ export function WrongStudent({
         <div className="grid gap-2">
           <Label htmlFor="wrong-student-target">Another group</Label>
           <Select
+            items={items}
             value={target}
             onValueChange={(value) => {
               if (value) setTarget(value);
@@ -86,10 +91,9 @@ export function WrongStudent({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={OWN}>Their own group</SelectItem>
-              {others.map((student) => (
-                <SelectItem key={student.id} value={student.id}>
-                  {student.name}
+              {items.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
                 </SelectItem>
               ))}
             </SelectContent>

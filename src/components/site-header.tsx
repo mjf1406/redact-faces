@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { DeleteAllData } from '@/components/delete-all-data';
 import { ModeToggle } from '@/components/mode-toggle';
 
 export function Page({ children }: { children: ReactNode }) {
@@ -16,6 +17,7 @@ export function SiteHeader({ title, actions }: { title: string; actions?: ReactN
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {actions}
+        <DeleteAllData />
         <ModeToggle />
       </div>
     </header>

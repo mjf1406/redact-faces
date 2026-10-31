@@ -143,17 +143,18 @@ function StudentPick({
   onChange: (value: string) => void;
   rows: { id: string; name: string }[];
 }) {
+  const items = rows.map((student) => ({ value: student.id, label: student.name }));
   return (
     <div className="grid gap-2">
       <Label htmlFor={id}>{label}</Label>
-      <Select value={value || null} onValueChange={(next) => onChange(next ?? '')}>
+      <Select items={items} value={value || null} onValueChange={(next) => onChange(next ?? '')}>
         <SelectTrigger id={id} className="w-48">
           <SelectValue placeholder="Choose" />
         </SelectTrigger>
         <SelectContent>
-          {rows.map((student) => (
-            <SelectItem key={student.id} value={student.id}>
-              {student.name}
+          {items.map((student) => (
+            <SelectItem key={student.value} value={student.value}>
+              {student.label}
             </SelectItem>
           ))}
         </SelectContent>

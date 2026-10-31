@@ -7,76 +7,43 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { db } from '../db/db';
-import { releaseProjectLock } from '../db/locks';
 import { LICENSE_NOTICE, RESPONSIBILITY } from '../gate/copy';
 import { ExportTab } from './ExportTab';
 import { GuessStep } from './GuessStep';
 import { NameStep } from './NameStep';
 import { PermissionStep } from './PermissionStep';
 import { PhotosTab } from './PhotosTab';
+import { ProjectOverview } from './ProjectOverview';
 import { ReviewTab } from './ReviewTab';
 import { SettingsTab } from './SettingsTab';
+import { FLOW_STEPS } from './steps';
 import { useUi, type WizardStep } from './store';
-
-const STEPS: { id: Exclude<WizardStep, 'settings'>; label: string; title: string; help: string }[] =
-  [
-    {
-      id: 'photos',
-      label: 'Photos',
-      title: 'Choose the class photos',
-      help: 'Pick the folder, then start the scan. The first scan downloads the face model and can take a while.',
-    },
-    {
-      id: 'names',
-      label: 'Names',
-      title: 'Name each group',
-      help: 'Each group looks like one person. Type their name. If a face is someone else, click it and choose Wrong student.',
-    },
-    {
-      id: 'guesses',
-      label: 'Check',
-      title: 'Check the guesses',
-      help: 'Say yes if the name is right. If it is the wrong student, leave the face as its own group or move it to someone else.',
-    },
-    {
-      id: 'permission',
-      label: 'Permission',
-      title: 'Who can be shown',
-      help: 'Yes means this person stays visible. No, or no choice, means the face is blacked out.',
-    },
-    {
-      id: 'review',
-      label: 'Review',
-      title: 'Check every photo',
-      help: 'Look through the photos before you save. You are responsible for the final check.',
-    },
-    {
-      id: 'export',
-      label: 'Save',
-      title: 'Save the copies',
-      help: 'This writes new photos into a folder you choose. The originals are not changed.',
-    },
-  ];
 
 export function Workspace({ projectId }: { projectId: string }) {
   const project = useLiveQuery(() => db.projects.get(projectId), [projectId]);
+  const screen = useUi((state) => state.screen);
   const step = useUi((state) => state.step);
   const setStep = useUi((state) => state.setStep);
-  const setProject = useUi((state) => state.setProject);
+  const setScreen = useUi((state) => state.setScreen);
   const deviceLost = useUi((state) => state.deviceLost);
   const warnSlow = useUi((state) => state.warnSlow);
   const medianMs = useUi((state) => state.medianMs);
   const scan = useUi((state) => state.scan);
-  const [returnStep, setReturnStep] = useState<WizardStep>('photos');
+  const [settingsReturn, setSettingsReturn] = useState<'home' | WizardStep>('home');
   const index = Math.max(
     0,
-    STEPS.findIndex((item) => item.id === step),
+    FLOW_STEPS.findIndex((item) => item.id === step),
   );
-  const current = STEPS[index];
+  const current = FLOW_STEPS[index];
 
   function openSettings() {
-    if (step !== 'settings') setReturnStep(step);
+    if (step !== 'settings') setSettingsReturn(screen === 'home' ? 'home' : step);
     setStep('settings');
+  }
+
+  function closeSettings() {
+    if (settingsReturn === 'home') setScreen('home');
+    else setStep(settingsReturn);
   }
 
   return (
@@ -84,26 +51,14 @@ export function Workspace({ projectId }: { projectId: string }) {
       <SiteHeader
         title={project?.name ?? 'Project'}
         actions={
-          <>
-            <Button
-              type="button"
-              variant={step === 'settings' ? 'default' : 'outline'}
-              aria-pressed={step === 'settings'}
-              onClick={openSettings}
-            >
-              Settings
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                releaseProjectLock(projectId);
-                setProject(null);
-              }}
-            >
-              All projects
-            </Button>
-          </>
+          <Button
+            type="button"
+            variant={step === 'settings' ? 'default' : 'outline'}
+            aria-pressed={step === 'settings'}
+            onClick={openSettings}
+          >
+            Project Settings
+          </Button>
         }
       />
       <p className="text-sm text-muted-foreground">{RESPONSIBILITY}</p>
@@ -132,21 +87,23 @@ export function Workspace({ projectId }: { projectId: string }) {
         <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
           <SettingsTab projectId={projectId} />
           <div className="mt-6">
-            <Button type="button" variant="outline" onClick={() => setStep(returnStep)}>
+            <Button type="button" variant="outline" onClick={closeSettings}>
               Back
             </Button>
           </div>
         </section>
+      ) : screen === 'home' ? (
+        <ProjectOverview projectId={projectId} />
       ) : (
         <section className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
-            <Progress value={((index + 1) / STEPS.length) * 100}>
+            <Progress value={((index + 1) / FLOW_STEPS.length) * 100}>
               <p className="text-sm font-medium">
-                Step {index + 1} of {STEPS.length}
+                Step {index + 1} of {FLOW_STEPS.length}
               </p>
             </Progress>
             <ol className="hidden gap-2 md:grid md:grid-cols-6">
-              {STEPS.map((item, itemIndex) => (
+              {FLOW_STEPS.map((item, itemIndex) => (
                 <li key={item.id}>
                   <StepButton
                     index={itemIndex}
@@ -158,7 +115,7 @@ export function Workspace({ projectId }: { projectId: string }) {
               ))}
             </ol>
             <div className="flex items-center gap-2 md:hidden">
-              {STEPS.map((item, itemIndex) => (
+              {FLOW_STEPS.map((item, itemIndex) => (
                 <button
                   key={item.id}
                   type="button"
@@ -195,15 +152,15 @@ export function Workspace({ projectId }: { projectId: string }) {
                 type="button"
                 variant="outline"
                 disabled={index === 0}
-                onClick={() => setStep(STEPS[index - 1].id)}
+                onClick={() => setStep(FLOW_STEPS[index - 1].id)}
               >
                 Back
               </Button>
-              {index < STEPS.length - 1 ? (
+              {index < FLOW_STEPS.length - 1 ? (
                 <Button
                   type="button"
                   disabled={step === 'photos' && scan.running}
-                  onClick={() => setStep(STEPS[index + 1].id)}
+                  onClick={() => setStep(FLOW_STEPS[index + 1].id)}
                 >
                   Next
                 </Button>

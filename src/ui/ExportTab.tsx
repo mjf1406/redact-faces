@@ -10,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -24,10 +23,18 @@ import { db } from '../db/db';
 import { updateSettings } from '../db/projects';
 import type { ExportSummary } from '../export/runExport';
 import { runExport } from '../export/runExport';
+import { zipDownloadName } from '../export/zip';
 import { canExport, canOverrideExport, exportBlockers } from '../engine/exportGate';
 import { computeRedactionRects } from '../engine/redact';
 import { RESPONSIBILITY } from '../gate/copy';
 import { useUi } from './store';
+
+const MAX_SIDES = [
+  { value: 'original', label: 'Original' },
+  { value: '3840', label: '3840' },
+  { value: '2560', label: '2560' },
+  { value: '1920', label: '1920' },
+] as const;
 
 export function ExportTab({ projectId }: { projectId: string }) {
   const project = useLiveQuery(() => db.projects.get(projectId), [projectId]);
@@ -42,8 +49,8 @@ export function ExportTab({ projectId }: { projectId: string }) {
   const setReviewIndex = useUi((state) => state.setReviewIndex);
   const [summary, setSummary] = useState<ExportSummary | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const cancelRef = useRef(false);
-  const [phrase, setPhrase] = useState('');
   const [alsoUnresolved, setAlsoUnresolved] = useState(false);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const blockers = exportBlockers({ photos, faces, students });
@@ -68,19 +75,26 @@ export function ExportTab({ projectId }: { projectId: string }) {
       : null;
 
   if (!project) return null;
+  const projectName = project.name;
 
-  async function start(redactUnresolved: boolean) {
-    const output = await window.showDirectoryPicker({ mode: 'readwrite' });
+  async function start(redactUnresolved: boolean, override = false) {
+    setError(null);
+    setOverrideOpen(false);
     cancelRef.current = false;
-    const result = await runExport(
-      projectId,
-      output,
-      { redactUnresolved },
-      (done, total, current) => setProgress(`${done} / ${total} ${current}`),
-      () => cancelRef.current,
-    );
-    setSummary(result);
-    setProgress(null);
+    try {
+      const result = await runExport(
+        projectId,
+        { redactUnresolved, override },
+        (done, total, current) => setProgress(`${done} / ${total} ${current}`),
+        () => cancelRef.current,
+      );
+      if (result.zip) downloadBlob(result.zip, zipDownloadName(projectName));
+      setSummary(result);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Export failed.');
+    } finally {
+      setProgress(null);
+    }
   }
 
   const redactedPhotos = photos.filter((photo) =>
@@ -132,6 +146,7 @@ export function ExportTab({ projectId }: { projectId: string }) {
       <div className="grid gap-2">
         <Label htmlFor="max-side">Max long side</Label>
         <Select
+          items={MAX_SIDES}
           value={dimension}
           onValueChange={(value) => {
             if (value !== 'original' && value !== '3840' && value !== '2560' && value !== '1920') {
@@ -147,10 +162,11 @@ export function ExportTab({ projectId }: { projectId: string }) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="original">Original</SelectItem>
-            <SelectItem value="3840">3840</SelectItem>
-            <SelectItem value="2560">2560</SelectItem>
-            <SelectItem value="1920">1920</SelectItem>
+            {MAX_SIDES.map((side) => (
+              <SelectItem key={side.value} value={side.value}>
+                {side.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -179,19 +195,18 @@ export function ExportTab({ projectId }: { projectId: string }) {
       </ul>
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" disabled={!ready} onClick={() => void start(false)}>
-          Export
+          Download zip
         </Button>
         <Button
           type="button"
           variant="outline"
           disabled={!override}
           onClick={() => {
-            setPhrase('');
             setAlsoUnresolved(false);
             setOverrideOpen(true);
           }}
         >
-          Export anyway…
+          Download anyway…
         </Button>
         {progress ? (
           <Button type="button" variant="outline" onClick={() => (cancelRef.current = true)}>
@@ -200,11 +215,13 @@ export function ExportTab({ projectId }: { projectId: string }) {
         ) : null}
       </div>
       {progress ? <p className="text-sm text-muted-foreground">{progress}</p> : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {summary ? (
         <div className="grid gap-2 text-sm">
           <p>
-            Exported {summary.exported}. Faces redacted {summary.facesRedacted}.
-            {summary.cancelled ? ' Cancelled.' : ''}
+            {summary.cancelled
+              ? 'Cancelled. Nothing was downloaded.'
+              : `Downloaded ${summary.exported}. Faces redacted ${summary.facesRedacted}.`}
           </p>
           <ul className="list-disc space-y-1 pl-5">
             {summary.skipped.map((item) => (
@@ -217,51 +234,42 @@ export function ExportTab({ projectId }: { projectId: string }) {
       ) : null}
       <Dialog open={overrideOpen} onOpenChange={setOverrideOpen}>
         <DialogContent>
-          <form
-            className="grid gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (phrase !== 'EXPORT') return;
-              setOverrideOpen(false);
-              void start(alsoUnresolved);
-            }}
-          >
-            <DialogHeader>
-              <DialogTitle>Unresolved faces will stay visible</DialogTitle>
-              <DialogDescription>
-                {blockers.unresolvedFaceIds.length} faces are unresolved. They will not be blacked
-                out unless you tick the box. Type EXPORT to continue.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="also-unresolved"
-                checked={alsoUnresolved}
-                onCheckedChange={(checked) => setAlsoUnresolved(checked)}
-              />
-              <Label htmlFor="also-unresolved">Also black out unresolved faces</Label>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="export-phrase">Type EXPORT</Label>
-              <Input
-                id="export-phrase"
-                value={phrase}
-                onChange={(event) => setPhrase(event.target.value)}
-              />
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={phrase !== 'EXPORT'}>
-                Export
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setOverrideOpen(false)}>
-                Cancel
-              </Button>
-            </DialogFooter>
-          </form>
+          <DialogHeader>
+            <DialogTitle>Unresolved faces will stay visible</DialogTitle>
+            <DialogDescription>
+              {blockers.unresolvedFaceIds.length} faces are unresolved. They will not be blacked out
+              unless you tick the box.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="also-unresolved"
+              checked={alsoUnresolved}
+              onCheckedChange={(checked) => setAlsoUnresolved(checked === true)}
+            />
+            <Label htmlFor="also-unresolved">Also black out unresolved faces</Label>
+          </div>
+          <DialogFooter>
+            <Button type="button" onClick={() => void start(alsoUnresolved, true)}>
+              Download
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setOverrideOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </section>
   );
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function Sample({

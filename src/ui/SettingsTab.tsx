@@ -23,6 +23,12 @@ import { clearModelCache } from '../engine/modelStore';
 import { restartEngine } from '../engine/engineClient';
 import { reembedProject } from '../scan/reembed';
 
+const DETECTION_MODES = [
+  { value: 'fast', label: 'Fast' },
+  { value: 'thorough', label: 'Thorough' },
+  { value: 'maximum', label: 'Maximum' },
+] as const;
+
 export function SettingsTab({ projectId }: { projectId: string }) {
   const project = useLiveQuery(() => db.projects.get(projectId), [projectId]);
   const students =
@@ -107,6 +113,7 @@ export function SettingsTab({ projectId }: { projectId: string }) {
       <div className="grid gap-2">
         <Label htmlFor="detection-mode">Detection mode</Label>
         <Select
+          items={DETECTION_MODES}
           value={settings.detectionMode}
           onValueChange={(value) => {
             if (value === 'fast' || value === 'thorough' || value === 'maximum') {
@@ -118,9 +125,11 @@ export function SettingsTab({ projectId }: { projectId: string }) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="fast">Fast</SelectItem>
-            <SelectItem value="thorough">Thorough</SelectItem>
-            <SelectItem value="maximum">Maximum</SelectItem>
+            {DETECTION_MODES.map((mode) => (
+              <SelectItem key={mode.value} value={mode.value}>
+                {mode.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -182,9 +191,25 @@ export function SettingsTab({ projectId }: { projectId: string }) {
         contain embeddings.
       </p>
       {message ? <p className="text-sm">{message}</p> : null}
-      <h2 className="font-heading text-base font-medium">Matching calibration</h2>
+      <div className="grid gap-2">
+        <h2 className="font-heading text-base font-medium">Matching calibration</h2>
+        <div className="grid gap-2 text-sm text-muted-foreground">
+          <p>
+            These charts count pairs of faces you have confirmed. Along the bottom, similarity runs
+            from 0 to 1. Zero means the faces do not look alike. One means they look like the same
+            face. Each bar is one tenth of that range. The numbers on the left are how many pairs
+            landed in a bar. Each chart sizes its bars against its own tallest bar, so compare the
+            numbers when you look from one chart to the other.
+          </p>
+          <p>
+            Same student should gather near 1. Different students should gather near 0. Set the
+            suggest threshold in the open space between those groups. Overlap means suggestions will
+            mix people together.
+          </p>
+        </div>
+      </div>
       {calibration ? (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-6">
           <Hist title="Same student" counts={calibration.sameBins} />
           <Hist title="Different students" counts={calibration.differentBins} />
         </div>
@@ -200,18 +225,54 @@ export function SettingsTab({ projectId }: { projectId: string }) {
 function Hist({ title, counts }: { title: string; counts: number[] }) {
   const peak = Math.max(1, ...counts);
   return (
-    <div className="grid gap-2">
-      <h3 className="text-sm font-medium">{title}</h3>
-      <div className="flex h-32 items-end gap-0.5 border-b">
-        {counts.map((count, index) => (
-          <div
-            key={index}
-            className="min-h-0.5 flex-1 bg-primary"
-            style={{ height: `${(count / peak) * 100}%` }}
-            title={`${index / 10}–${(index + 1) / 10}: ${count}`}
-          />
-        ))}
+    <figure className="grid gap-1.5">
+      <figcaption className="text-sm font-medium">{title}</figcaption>
+      <p className="text-xs text-muted-foreground">Pairs</p>
+      <div className="flex gap-2">
+        <div className="flex h-32 w-8 shrink-0 flex-col justify-between text-right text-xs text-muted-foreground">
+          <span>{peak}</span>
+          <span>0</span>
+        </div>
+        <div
+          className="flex h-32 min-w-0 flex-1 items-end gap-0.5 border-b border-l border-border pl-0.5"
+          role="img"
+          aria-label={histogramLabel(title, counts)}
+        >
+          {counts.map((count, index) => {
+            const start = (index / 10).toFixed(1);
+            const end = ((index + 1) / 10).toFixed(1);
+            return (
+              <div
+                key={start}
+                className={count > 0 ? 'min-h-0.5 flex-1 bg-primary' : 'flex-1'}
+                style={{ height: `${(count / peak) * 100}%` }}
+                title={`${start}–${end}: ${count} ${count === 1 ? 'pair' : 'pairs'}`}
+              />
+            );
+          })}
+        </div>
       </div>
-    </div>
+      <div className="ml-10 grid gap-0.5 text-xs text-muted-foreground">
+        <div className="flex justify-between">
+          <span>0</span>
+          <span>0.5</span>
+          <span>1</span>
+        </div>
+        <div className="flex justify-between gap-2">
+          <span>Not alike</span>
+          <span>Same face</span>
+        </div>
+        <p className="text-center">Similarity</p>
+      </div>
+    </figure>
   );
+}
+
+function histogramLabel(title: string, counts: number[]) {
+  const bins = counts.map((count, index) => {
+    const start = (index / 10).toFixed(1);
+    const end = ((index + 1) / 10).toFixed(1);
+    return `${start} to ${end}: ${count}`;
+  });
+  return `${title}. Pairs by similarity. ${bins.join(', ')}.`;
 }

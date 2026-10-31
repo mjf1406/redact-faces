@@ -32,7 +32,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { db } from '../db/db';
 import { holdProjectLock } from '../db/locks';
-import { createProject, deleteAllData, deleteProject } from '../db/projects';
+import { createProject, deleteProject } from '../db/projects';
 import { accuratePackEnabled } from '../engine/models';
 import type { ModelPack } from '../engine/constants';
 import type { ProjectRecord } from '../domain';
@@ -245,14 +245,6 @@ export function ProjectHome() {
           </form>
         </DialogContent>
       </Dialog>
-      <Card>
-        <CardHeader>
-          <CardTitle>Delete all data</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DeleteAll />
-        </CardContent>
-      </Card>
       <footer className="grid gap-2 text-xs text-muted-foreground">
         <p>{PRIVACY_STATEMENT}</p>
         <p>{LICENSE_NOTICE}</p>
@@ -368,37 +360,5 @@ function PackChoice({
         ) : null}
       </RadioGroup>
     </fieldset>
-  );
-}
-
-function DeleteAll() {
-  const [phrase, setPhrase] = useState('');
-  return (
-    <form
-      className="grid gap-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (phrase !== 'DELETE') return;
-        void deleteAllData();
-      }}
-    >
-      <p className="text-sm text-muted-foreground">
-        This deletes projects, names, consent, and folder access on this browser. Model downloads
-        stay cached.
-      </p>
-      <div className="grid gap-2">
-        <Label htmlFor="delete-phrase">Type DELETE</Label>
-        <Input
-          id="delete-phrase"
-          value={phrase}
-          onChange={(event) => setPhrase(event.target.value)}
-        />
-      </div>
-      <div>
-        <Button type="submit" variant="destructive" disabled={phrase !== 'DELETE'}>
-          Delete all data
-        </Button>
-      </div>
-    </form>
   );
 }
