@@ -69,9 +69,9 @@ Create a bucket and allow the Pages origin to `GET` the model files:
 
 Upload `models-large/` for the Accurate pack. Set `VITE_LARGE_MODEL_BASE_URL` at **build** time to that public URL.
 
-The ONNX Runtime WebGPU file `ort-wasm-simd-threaded.asyncify.wasm` is 28,747,738 bytes, so it is not copied into `dist/`. Upload that file and `ort-wasm-simd-threaded.asyncify.mjs` from `node_modules/onnxruntime-web/dist/` to the same bucket, then set `VITE_ORT_WASM_BASE_URL` to that directory with a trailing slash, and rebuild.
+The ONNX Runtime WebGPU file `ort-wasm-simd-threaded.asyncify.wasm` is 28,747,738 bytes, so it is not copied into `dist/`. A production build loads it from `${VITE_LARGE_MODEL_BASE_URL}/ort/` unless `VITE_ORT_WASM_BASE_URL` is set. Upload `ort-wasm-simd-threaded.asyncify.wasm` and `ort-wasm-simd-threaded.asyncify.mjs` from `node_modules/onnxruntime-web/dist/` to that `ort/` prefix. Local `bun run dev` still serves `/ort/` from `node_modules`.
 
-Before deploying, add that exact origin to `connect-src` in `public/_headers`. If the runtime then fails to start its helper, add the same origin to `worker-src` as well. The header file ships with `connect-src 'self'` until you do that.
+`public/_headers` allows the configured R2 origin in `script-src`, `connect-src`, and `worker-src`. The `.mjs` is loaded with `import()`, so `connect-src` alone is not enough. The bucket also needs CORS that allows `GET` from the Pages origin.
 
 ## Privacy
 

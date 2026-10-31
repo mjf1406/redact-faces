@@ -61,7 +61,7 @@ export const GATE_COPY: Record<
       'Creating the WebGPU model session failed. The app will not fall back to CPU inference. The error from the runtime is shown below.',
     steps: [
       'If the message says model files are missing, run bun run models:fetch and reload.',
-      'If the message mentions the wasm runtime, host ort-wasm-simd-threaded.asyncify.wasm on R2 and rebuild with VITE_ORT_WASM_BASE_URL.',
+      'If the message mentions the wasm runtime, upload the two ort-wasm-simd-threaded.asyncify files into the ort/ folder of the Accurate-model bucket and redeploy.',
       'Otherwise update GPU drivers, relaunch the browser, and try again.',
     ],
   },

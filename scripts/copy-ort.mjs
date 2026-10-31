@@ -39,5 +39,7 @@ await writeFile(
 
 console.log(`Copied ${copied.length} ORT runtime file(s) to public/ort.`);
 if (skipped.length > 0) {
-  console.log('Set VITE_ORT_WASM_BASE_URL to the R2 directory that holds the skipped files.');
+  console.log(
+    'Production loads skipped files from ${VITE_LARGE_MODEL_BASE_URL}/ort/. Upload them to that prefix.',
+  );
 }

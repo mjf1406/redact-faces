@@ -13,7 +13,8 @@
     "test": "vitest run",
     "models:fetch": "bun scripts/fetch-models.mjs",
     "check:dist-size": "bun scripts/check-dist-size.mjs",
-    "ort:copy": "bun scripts/copy-ort.mjs"
+    "ort:copy": "bun scripts/copy-ort.mjs",
+    "ort:publish": "bun scripts/publish-ort.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

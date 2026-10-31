@@ -63,7 +63,7 @@ function wasmFailure(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   if (/wasm|fetch|404|network/i.test(message)) {
     return new Error(
-      `${message} The WebGPU runtime file ort-wasm-simd-threaded.asyncify.wasm is 28,747,738 bytes, over the Cloudflare Pages limit. Upload it and ort-wasm-simd-threaded.asyncify.mjs to the R2 bucket, set VITE_ORT_WASM_BASE_URL to that directory, and rebuild. Local bun run dev serves the file from node_modules.`,
+      `${message} The WebGPU runtime is loaded from ${wasmPrefix()}ort-wasm-simd-threaded.asyncify.mjs. ort-wasm-simd-threaded.asyncify.wasm is 28,747,738 bytes, over the Cloudflare Pages limit, so a production build loads it from the ort/ folder of the same bucket as VITE_LARGE_MODEL_BASE_URL. Upload that wasm file and ort-wasm-simd-threaded.asyncify.mjs there. Local bun run dev serves both files from node_modules.`,
     );
   }
   return error instanceof Error ? error : new Error(message);

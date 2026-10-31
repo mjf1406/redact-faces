@@ -37,12 +37,25 @@ export function accuratePackEnabled() {
   return largeModelBaseUrl() != null;
 }
 
-export function wasmPrefix() {
-  const configured = import.meta.env.VITE_ORT_WASM_BASE_URL;
+export function wasmPrefixFrom(options: {
+  ortBaseUrl?: string;
+  modelBaseUrl: string | null;
+  prod: boolean;
+}) {
+  const configured = options.ortBaseUrl;
   if (typeof configured === 'string' && configured.length > 0) {
     return configured.endsWith('/') ? configured : `${configured}/`;
   }
+  if (options.prod && options.modelBaseUrl) return `${options.modelBaseUrl}/ort/`;
   return '/ort/';
+}
+
+export function wasmPrefix() {
+  return wasmPrefixFrom({
+    ortBaseUrl: import.meta.env.VITE_ORT_WASM_BASE_URL,
+    modelBaseUrl: largeModelBaseUrl(),
+    prod: import.meta.env.PROD,
+  });
 }
 
 export function modelUrl(entry: ManifestEntry) {
