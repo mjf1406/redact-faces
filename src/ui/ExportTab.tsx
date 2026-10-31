@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -45,7 +46,7 @@ export function ExportTab({ projectId }: { projectId: string }) {
   const students =
     useLiveQuery(() => db.students.where('projectId').equals(projectId).toArray(), [projectId]) ??
     [];
-  const setStep = useUi((state) => state.setStep);
+  const navigate = useNavigate();
   const setReviewIndex = useUi((state) => state.setReviewIndex);
   const [summary, setSummary] = useState<ExportSummary | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
@@ -178,7 +179,6 @@ export function ExportTab({ projectId }: { projectId: string }) {
               type="button"
               variant="outline"
               onClick={() => {
-                setStep('review');
                 const ordered = [...photos].sort((a, b) => a.relPath.localeCompare(b.relPath));
                 setReviewIndex(
                   Math.max(
@@ -186,6 +186,10 @@ export function ExportTab({ projectId }: { projectId: string }) {
                     ordered.findIndex((item) => item.id === photo.id),
                   ),
                 );
+                void navigate({
+                  to: '/p/$projectId/$step',
+                  params: { projectId, step: 'review' },
+                });
               }}
             >
               {photo.relPath}

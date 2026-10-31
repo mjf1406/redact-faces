@@ -38,3 +38,7 @@ export const FLOW_STEPS: { id: FlowStep; label: string; title: string; help: str
     help: 'This downloads a zip of new photos. The originals are not changed.',
   },
 ];
+
+export function isFlowStep(value: string): value is FlowStep {
+  return FLOW_STEPS.some((step) => step.id === value);
+}

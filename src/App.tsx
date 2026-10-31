@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
+import { RouterProvider } from '@tanstack/react-router';
 import { onDeviceLost } from './gate/device';
 import { runCapabilityGate, type GateFailure, type GateSuccess } from './gate/runGate';
 import { cancelScan } from './scan/runScan';
 import { Page, SiteHeader } from '@/components/site-header';
 import { Spinner } from '@/components/ui/spinner';
+import { router } from './router';
 import { GateScreen } from './ui/GateScreen';
-import { ProjectHome } from './ui/ProjectHome';
 import { useUi } from './ui/store';
-import { Workspace } from './ui/Workspace';
 
 export function App() {
   const [gate, setGate] = useState<
@@ -15,7 +15,6 @@ export function App() {
     | { status: 'blocked'; failure: GateFailure }
     | { status: 'ready'; success: GateSuccess }
   >({ status: 'checking' });
-  const projectId = useUi((state) => state.projectId);
   const setWarn = useUi((state) => state.setWarn);
   const setDeviceLost = useUi((state) => state.setDeviceLost);
 
@@ -61,5 +60,5 @@ export function App() {
       />
     );
   }
-  return projectId ? <Workspace projectId={projectId} /> : <ProjectHome />;
+  return <RouterProvider router={router} />;
 }

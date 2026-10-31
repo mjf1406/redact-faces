@@ -8,11 +8,19 @@ export function Page({ children }: { children: ReactNode }) {
   );
 }
 
-export function SiteHeader({ title, actions }: { title: string; actions?: ReactNode }) {
+export function SiteHeader({
+  title,
+  crumbs,
+  actions,
+}: {
+  title: string;
+  crumbs?: ReactNode;
+  actions?: ReactNode;
+}) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
-      <div className="grid gap-1">
-        <p className="text-sm font-medium">Redact Faces</p>
+      <div className="grid gap-2">
+        {crumbs ?? <p className="text-sm font-medium">Redact Faces</p>}
         <h1 className="font-heading text-3xl font-semibold tracking-tight">{title}</h1>
       </div>
       <div className="flex flex-wrap items-center gap-2">

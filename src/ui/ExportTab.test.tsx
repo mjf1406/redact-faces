@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { RouterContextProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultSettings } from '../engine/constants';
@@ -43,6 +44,7 @@ vi.mock('dexie-react-hooks', () => ({
 }));
 
 import { runExport } from '../export/runExport';
+import { router } from '../router';
 import { ExportTab } from './ExportTab';
 
 describe('export anyway', () => {
@@ -52,7 +54,11 @@ describe('export anyway', () => {
   });
 
   it('shows the long-side option label', () => {
-    const view = render(<ExportTab projectId="p1" />);
+    const view = render(
+      <RouterContextProvider router={router}>
+        <ExportTab projectId="p1" />
+      </RouterContextProvider>,
+    );
     expect(view.getByLabelText('Max long side').textContent).toContain('Original');
   });
 
@@ -73,7 +79,11 @@ describe('export anyway', () => {
       zip: new Blob(['zip'], { type: 'application/zip' }),
     });
 
-    const view = render(<ExportTab projectId="p1" />);
+    const view = render(
+      <RouterContextProvider router={router}>
+        <ExportTab projectId="p1" />
+      </RouterContextProvider>,
+    );
     fireEvent.click(view.getByRole('button', { name: 'Download anyway…' }));
 
     expect(view.queryByLabelText('Type EXPORT')).toBeNull();

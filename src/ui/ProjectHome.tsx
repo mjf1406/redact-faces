@@ -1,6 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { CircleAlert, EllipsisVertical, FolderOpen, Plus, Upload } from 'lucide-react';
+import { AppBreadcrumbs } from '@/components/app-breadcrumbs';
 import { Page, SiteHeader } from '@/components/site-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +33,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { db } from '../db/db';
-import { holdProjectLock } from '../db/locks';
 import { createProject, deleteProject } from '../db/projects';
 import { accuratePackEnabled } from '../engine/models';
 import type { ModelPack } from '../engine/constants';
@@ -52,22 +53,11 @@ export function ProjectHome() {
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const lockMessage = useUi((state) => state.lockMessage);
-  const setProject = useUi((state) => state.setProject);
-  const setLockMessage = useUi((state) => state.setLockMessage);
+  const navigate = useNavigate();
   const accurate = accuratePackEnabled();
 
-  async function open(id: string) {
-    const lock = await holdProjectLock(id);
-    if (lock === 'busy') {
-      setLockMessage('This project is already open in another tab.');
-      return;
-    }
-    await db.photos
-      .where('[projectId+status]')
-      .equals([id, 'processing'])
-      .modify({ status: 'pending' });
-    setLockMessage(null);
-    setProject(id);
+  function open(id: string) {
+    void navigate({ to: '/p/$projectId', params: { projectId: id } });
   }
 
   function closeCreate(open: boolean) {
@@ -89,7 +79,7 @@ export function ProjectHome() {
 
   return (
     <Page>
-      <SiteHeader title="School-year projects" />
+      <SiteHeader title="School-year projects" crumbs={<AppBreadcrumbs page="home" />} />
       <p className="text-sm text-muted-foreground">{RESPONSIBILITY}</p>
       {lockMessage ? (
         <Alert>
@@ -121,7 +111,7 @@ export function ProjectHome() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} onOpen={(id) => void open(id)} />
+              <ProjectCard key={project.id} project={project} />
             ))}
           </div>
         )}
@@ -192,7 +182,7 @@ export function ProjectHome() {
                     );
                   }
                   closeImport(false);
-                  await open(result.id);
+                  open(result.id);
                 })
                 .catch((reason: unknown) =>
                   setError(reason instanceof Error ? reason.message : 'Import failed.'),
@@ -269,26 +259,20 @@ function EmptyProjects() {
   );
 }
 
-function ProjectCard({
-  project,
-  onOpen,
-}: {
-  project: ProjectRecord;
-  onOpen: (id: string) => void;
-}) {
+function ProjectCard({ project }: { project: ProjectRecord }) {
   const created = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(
     project.createdAt,
   );
 
   return (
     <Card className="relative transition-colors hover:bg-muted/40">
-      <button
-        type="button"
+      <Link
+        to="/p/$projectId"
+        params={{ projectId: project.id }}
         className="absolute inset-0 z-0 rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-        onClick={() => onOpen(project.id)}
       >
         <span className="sr-only">Open {project.name}</span>
-      </button>
+      </Link>
       <CardHeader className="pointer-events-none">
         <CardTitle className="pr-8">{project.name}</CardTitle>
         <CardDescription>{created}</CardDescription>

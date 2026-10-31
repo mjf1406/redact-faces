@@ -1,10 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks';
+import { Link } from '@tanstack/react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { db } from '../db/db';
 import { projectStepProgress, wizardStartStep, type StepStatus } from './projectProgress';
-import { FLOW_STEPS, type FlowStep } from './steps';
-import { useUi } from './store';
+import { FLOW_STEPS } from './steps';
 
 const statusLabel: Record<StepStatus, string> = {
   'not-started': 'Not started',
@@ -27,8 +27,6 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
     () => db.students.where('projectId').equals(projectId).toArray(),
     [projectId],
   );
-  const setStep = useUi((state) => state.setStep);
-
   if (!project || !photos || !faces || !students) return null;
 
   const progress = projectStepProgress({
@@ -38,19 +36,15 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
     students,
   });
   const byId = new Map(progress.map((item) => [item.id, item]));
-
-  function openStep(id: FlowStep) {
-    setStep(id);
-  }
+  const start = wizardStartStep(progress);
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <Button
-          type="button"
           size="lg"
           className="h-12 w-full px-10 text-base lg:w-auto lg:min-w-72"
-          onClick={() => openStep(wizardStartStep(progress))}
+          render={<Link to="/p/$projectId/$step" params={{ projectId, step: start }} />}
         >
           Start wizard
         </Button>
@@ -63,9 +57,9 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
             if (!item) return null;
             return (
               <li key={step.id}>
-                <button
-                  type="button"
-                  onClick={() => openStep(step.id)}
+                <Link
+                  to="/p/$projectId/$step"
+                  params={{ projectId, step: step.id }}
                   className="flex w-full flex-col gap-3 rounded-xl bg-card p-4 text-left ring-1 ring-foreground/10 outline-none hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                   <span className="flex items-start justify-between gap-3">
@@ -89,7 +83,7 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
                   </span>
                   <span className="text-sm text-muted-foreground">{item.detail}</span>
                   <StepMeter value={item.value} label={`${step.label} progress`} />
-                </button>
+                </Link>
               </li>
             );
           })}
