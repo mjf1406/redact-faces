@@ -18,6 +18,8 @@
           root.classList.remove('light', 'dark');
           root.classList.add(dark ? 'dark' : 'light');
           root.style.colorScheme = dark ? 'dark' : 'light';
+          // Paint the canvas before the CSS bundle. Matches --background in src/index.css.
+          root.style.backgroundColor = dark ? 'oklch(0.153 0.006 107.1)' : 'oklch(1 0 0)';
         } catch (e) {}
       })();
     </script>

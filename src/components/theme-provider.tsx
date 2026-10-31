@@ -43,6 +43,9 @@ export function ThemeProvider({
       root.classList.remove('light', 'dark');
       root.classList.add(resolved);
       root.style.colorScheme = resolved;
+      // index.html sets an inline background so the first paint matches the theme.
+      // Drop it once tokens are applied so later toggles follow the stylesheet.
+      root.style.backgroundColor = '';
     };
 
     apply();

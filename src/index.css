@@ -123,10 +123,10 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    @apply bg-background font-sans;
+  }
   body {
     @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
   }
 }

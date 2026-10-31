@@ -3,6 +3,7 @@ import { onDeviceLost } from './gate/device';
 import { runCapabilityGate, type GateFailure, type GateSuccess } from './gate/runGate';
 import { cancelScan } from './scan/runScan';
 import { Page, SiteHeader } from '@/components/site-header';
+import { Spinner } from '@/components/ui/spinner';
 import { GateScreen } from './ui/GateScreen';
 import { ProjectHome } from './ui/ProjectHome';
 import { useUi } from './ui/store';
@@ -45,6 +46,9 @@ export function App() {
     return (
       <Page>
         <SiteHeader title="Checking this browser…" />
+        <div className="flex flex-1 items-center justify-center">
+          <Spinner className="size-8 text-muted-foreground" />
+        </div>
       </Page>
     );
   }
