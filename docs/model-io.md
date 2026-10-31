@@ -71,22 +71,3 @@
 ### Outputs
 
 - `683` elem 1 shape [1, 512]
-
-## Decoder notes
-
-Inspected from the files above, not from the InsightFace README.
-
-Detection (`det_500m.onnx`, `det_10g.onnx`):
-
-- Input name `input.1`, float32, shape `[1, 3, ?, ?]`. The engine feeds `1x3x640x640`.
-- Output names are numeric. Order is scores for strides 8, 16, 32, then boxes, then five-point keypoints.
-- Shapes confirm that order: `[12800, 1]`, `[3200, 1]`, `[800, 1]`, then the same anchor counts with 4 box values, then 10 keypoint values.
-- `12800 = 80x80x2`, `3200 = 40x40x2`, `800 = 20x20x2` for a 640 input, strides 8 / 16 / 32, and 2 anchors per cell.
-- The decoder groups outputs by those shapes, and falls back to that same order when the shapes are not recognized.
-- Anchor layout is `[anchors, components]`.
-
-Embedding (`w600k_mbf.onnx`, `w600k_r50.onnx`):
-
-- Input name `input.1`, float32, shape `[None, 3, 112, 112]`.
-- Output name is numeric. Declared shape is `[1, 512]`, so the batch dimension is not dynamic on the output.
-- The engine runs one face at a time and L2-normalizes the 512 values. It does not send a batch of 16.

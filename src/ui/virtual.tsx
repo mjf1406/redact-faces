@@ -21,7 +21,7 @@ export function VirtualRows<T>({
   height: number;
   children: (item: T, index: number) => ReactNode;
 }) {
-  if (items.length === 0) return <p className="muted">Nothing to show.</p>;
+  if (items.length === 0) return <p className="text-sm text-muted-foreground">Nothing to show.</p>;
   return (
     <List
       rowCount={items.length}

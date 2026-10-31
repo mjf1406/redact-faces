@@ -52,12 +52,55 @@ export async function mergeStudents(projectId: string, keepId: string, dropId: s
 export async function assignFaces(projectId: string, faceIds: string[], studentId: string) {
   await db.transaction('rw', db.faces, async () => {
     for (const id of faceIds) {
+      const face = await db.faces.get(id);
+      const rejected = (face?.rejectedStudentIds ?? []).filter((item) => item !== studentId);
       await db.faces.update(id, {
         state: 'confirmed',
         studentId,
         suggestedStudentId: null,
         suggestionScore: null,
+        rejectedStudentIds: rejected,
+        bundleId: null,
       });
+    }
+  });
+  await refreshSuggestions(projectId);
+}
+
+export async function placeFaces(
+  projectId: string,
+  faceIds: string[],
+  options: { wrongStudentId: string | null; moveToStudentId: string | null },
+) {
+  if (faceIds.length === 0) return;
+  const bundleId = createId();
+  const { wrongStudentId, moveToStudentId } = options;
+  await db.transaction('rw', db.faces, async () => {
+    for (const id of faceIds) {
+      const face = await db.faces.get(id);
+      if (!face) continue;
+      const rejected = new Set(face.rejectedStudentIds ?? []);
+      if (wrongStudentId) rejected.add(wrongStudentId);
+      if (moveToStudentId) {
+        rejected.delete(moveToStudentId);
+        await db.faces.update(id, {
+          state: 'confirmed',
+          studentId: moveToStudentId,
+          suggestedStudentId: null,
+          suggestionScore: null,
+          rejectedStudentIds: [...rejected],
+          bundleId: null,
+        });
+      } else {
+        await db.faces.update(id, {
+          state: 'unassigned',
+          studentId: null,
+          suggestedStudentId: null,
+          suggestionScore: null,
+          rejectedStudentIds: [...rejected],
+          bundleId,
+        });
+      }
     }
   });
   await refreshSuggestions(projectId);
@@ -75,6 +118,7 @@ export async function markFaces(
         studentId: null,
         suggestedStudentId: null,
         suggestionScore: null,
+        bundleId: null,
       });
     }
   });

@@ -5,10 +5,8 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
-const ortDir = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  'node_modules/onnxruntime-web/dist',
-);
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
+const ortDir = path.resolve(rootDir, 'node_modules/onnxruntime-web/dist');
 
 function serveOrt(): Plugin {
   const attach = (middlewares: {
@@ -65,7 +63,10 @@ const ortWebgpu = path.join(ortDir, 'ort.webgpu.min.mjs');
 export default defineConfig({
   plugins: [react(), tailwindcss(), serveOrt()],
   resolve: {
-    alias: { 'onnxruntime-web/webgpu': ortWebgpu },
+    alias: {
+      '@': path.resolve(rootDir, 'src'),
+      'onnxruntime-web/webgpu': ortWebgpu,
+    },
     conditions: ['onnxruntime-web-use-extern-wasm'],
   },
   worker: { format: 'es' },

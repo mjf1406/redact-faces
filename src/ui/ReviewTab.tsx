@@ -1,12 +1,24 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState, type PointerEvent } from 'react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { cn } from '@/lib/utils';
 import { db } from '../db/db';
 import { addManualRegion, addStudent, assignFaces, markFaces } from '../db/mutate';
+import { WrongStudent } from './WrongStudent';
 import { computeRedactionRects, isFaceResolved, shouldRedactFace } from '../engine/redact';
 import { fileByRelPath } from '../lib/files';
 import type { FaceRecord, PhotoRecord, StudentRecord } from '../domain';
 import { useUi } from './store';
 import { VirtualRows } from './virtual';
+
+const pressed =
+  'aria-pressed:bg-primary aria-pressed:text-primary-foreground hover:aria-pressed:bg-primary/80';
+const frame =
+  'absolute min-h-0 min-w-0 rounded-none border-2 bg-transparent p-0 shadow-none hover:bg-transparent';
 
 export function ReviewTab({ projectId }: { projectId: string }) {
   const project = useLiveQuery(() => db.projects.get(projectId), [projectId]);
@@ -40,7 +52,9 @@ export function ReviewTab({ projectId }: { projectId: string }) {
       if (
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement &&
+          target.closest('[data-slot="select-trigger"],[role="menu"],[role="dialog"]'))
       ) {
         return;
       }
@@ -52,40 +66,52 @@ export function ReviewTab({ projectId }: { projectId: string }) {
   }, [filtered.length, safeIndex, setIndex]);
 
   return (
-    <section className="review">
-      <div className="row">
-        {(['all', 'unresolved', 'redactions', 'errors'] as const).map((item) => (
-          <button
-            key={item}
-            type="button"
-            aria-pressed={filter === item}
-            onClick={() => setFilter(item)}
-          >
-            {item === 'all'
-              ? 'All'
-              : item === 'unresolved'
-                ? 'Has unresolved'
-                : item === 'redactions'
-                  ? 'Has redactions'
-                  : 'Errors'}
-          </button>
-        ))}
-        <label>
-          <input
-            type="checkbox"
+    <section className="grid gap-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <ToggleGroup
+          variant="outline"
+          value={[filter]}
+          onValueChange={(values) => {
+            const next = values[0];
+            if (
+              next === 'all' ||
+              next === 'unresolved' ||
+              next === 'redactions' ||
+              next === 'errors'
+            ) {
+              setFilter(next);
+            }
+          }}
+        >
+          <ToggleGroupItem value="all" className={pressed}>
+            All
+          </ToggleGroupItem>
+          <ToggleGroupItem value="unresolved" className={pressed}>
+            Has unresolved
+          </ToggleGroupItem>
+          <ToggleGroupItem value="redactions" className={pressed}>
+            Has redactions
+          </ToggleGroupItem>
+          <ToggleGroupItem value="errors" className={pressed}>
+            Errors
+          </ToggleGroupItem>
+        </ToggleGroup>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="preview-redactions"
             checked={preview}
-            onChange={(event) => setPreview(event.target.checked)}
-          />{' '}
-          Preview redactions
-        </label>
-        <label>
-          <input
-            type="checkbox"
+            onCheckedChange={(checked) => setPreview(checked)}
+          />
+          <Label htmlFor="preview-redactions">Preview redactions</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="draw-region"
             checked={draw}
-            onChange={(event) => setDraw(event.target.checked)}
-          />{' '}
-          Draw region
-        </label>
+            onCheckedChange={(checked) => setDraw(checked)}
+          />
+          <Label htmlFor="draw-region">Draw region</Label>
+        </div>
       </div>
       {photo && project ? (
         <Viewer
@@ -100,23 +126,24 @@ export function ReviewTab({ projectId }: { projectId: string }) {
           onManual={(box) => void addManualRegion(projectId, photo.id, box)}
         />
       ) : (
-        <p>No photo in this filter.</p>
+        <p className="text-sm text-muted-foreground">No photo in this filter.</p>
       )}
       <FaceEditor
         projectId={projectId}
         face={faces.find((face) => face.id === selectedId) ?? null}
         students={students}
       />
-      <div className="filmstrip">
+      <div className="h-40">
         <VirtualRows items={filtered} rowHeight={72} height={160}>
           {(item, itemIndex) => (
-            <button
+            <Button
               type="button"
-              className={itemIndex === safeIndex ? 'selected' : ''}
+              variant={itemIndex === safeIndex ? 'default' : 'outline'}
+              className="h-full w-[calc(100%-0.5rem)] justify-start"
               onClick={() => setIndex(itemIndex)}
             >
               {item.relPath}
-            </button>
+            </Button>
           )}
         </VirtualRows>
       </div>
@@ -207,7 +234,7 @@ function Viewer({
 
   return (
     <div
-      className="stage"
+      className="relative inline-block max-w-full"
       onPointerDown={(event) => {
         if (!draw) return;
         setDrag(toPhoto(event));
@@ -229,10 +256,14 @@ function Viewer({
         if (box.w * photo.width > 8 && box.h * photo.height > 8) onManual(box);
       }}
     >
-      {url ? <img src={url} alt={photo.relPath} /> : <p>Loading photo…</p>}
+      {url ? (
+        <img src={url} alt={photo.relPath} className="block h-auto max-h-[70vh] w-auto" />
+      ) : (
+        <p className="text-sm text-muted-foreground">Loading photo…</p>
+      )}
       {drag && current ? (
         <div
-          className="box unresolved"
+          className={cn(frame, 'border-amber-500')}
           style={{
             left: `${(Math.min(drag.x, current.x) / (photo.width || 1)) * 100}%`,
             top: `${(Math.min(drag.y, current.y) / (photo.height || 1)) * 100}%`,
@@ -244,7 +275,7 @@ function Viewer({
       {rects.map((rect, rectIndex) => (
         <div
           key={`redact-${rectIndex}`}
-          className="blackout"
+          className="pointer-events-none absolute bg-black"
           style={{
             left: `${(rect.x / photo.width) * 100}%`,
             top: `${(rect.y / photo.height) * 100}%`,
@@ -254,10 +285,11 @@ function Viewer({
         />
       ))}
       {faces.map((face) => (
-        <button
+        <Button
           type="button"
           key={face.id}
-          className={`box ${boxClass(face, students, preview)}`}
+          variant="outline"
+          className={boxClass(face, students, preview)}
           style={{
             left: `${face.box.x * 100}%`,
             top: `${face.box.y * 100}%`,
@@ -272,12 +304,16 @@ function Viewer({
 }
 
 function boxClass(face: FaceRecord, students: StudentRecord[], preview: boolean) {
-  if (preview && shouldRedactFace(face, students, { redactUnresolved: false })) return 'redacted';
-  if (face.state === 'safe') return 'safe';
-  if (shouldRedactFace(face, students, { redactUnresolved: false })) return 'redacted';
+  if (preview && shouldRedactFace(face, students, { redactUnresolved: false })) {
+    return cn(frame, 'border-red-500');
+  }
+  if (face.state === 'safe') return cn(frame, 'border-sky-500');
+  if (shouldRedactFace(face, students, { redactUnresolved: false })) {
+    return cn(frame, 'border-red-500');
+  }
   const ids = new Set(students.map((student) => student.id));
-  if (!isFaceResolved(face, ids)) return 'unresolved';
-  return 'visible';
+  if (!isFaceResolved(face, ids)) return cn(frame, 'border-amber-500');
+  return cn(frame, 'border-emerald-500');
 }
 
 function FaceEditor({
@@ -290,35 +326,56 @@ function FaceEditor({
   students: StudentRecord[];
 }) {
   const [name, setName] = useState('');
-  if (!face) return <p>Select a face to assign it.</p>;
+  if (!face) return <p className="text-sm text-muted-foreground">Select a face to assign it.</p>;
+  const wrongStudentId = face.studentId ?? face.suggestedStudentId;
   return (
-    <form
-      className="row"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const existing = students.find(
-          (student) => student.name.toLowerCase() === name.trim().toLowerCase(),
-        );
-        void (existing ? Promise.resolve(existing.id) : addStudent(projectId, name)).then((id) =>
-          assignFaces(projectId, [face.id], id),
-        );
-      }}
-    >
-      <label>
-        Assign selected face
-        <input
-          list="student-names"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
+    <div className="grid gap-3">
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const existing = students.find(
+            (student) => student.name.toLowerCase() === name.trim().toLowerCase(),
+          );
+          void (existing ? Promise.resolve(existing.id) : addStudent(projectId, name)).then((id) =>
+            assignFaces(projectId, [face.id], id),
+          );
+        }}
+      >
+        <div className="grid gap-2">
+          <Label htmlFor="assign-face">Assign selected face</Label>
+          <Input
+            id="assign-face"
+            list="student-names"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </div>
+        <Button type="submit">Assign</Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void markFaces(projectId, [face.id], 'safe')}
+        >
+          OK to show
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void markFaces(projectId, [face.id], 'falsePositive')}
+        >
+          Not a face
+        </Button>
+      </form>
+      {wrongStudentId ? (
+        <WrongStudent
+          key={face.id}
+          projectId={projectId}
+          faceIds={[face.id]}
+          wrongStudentId={wrongStudentId}
+          students={students}
         />
-      </label>
-      <button type="submit">Assign</button>
-      <button type="button" onClick={() => void markFaces(projectId, [face.id], 'safe')}>
-        OK to show
-      </button>
-      <button type="button" onClick={() => void markFaces(projectId, [face.id], 'falsePositive')}>
-        Not a face
-      </button>
-    </form>
+      ) : null}
+    </div>
   );
 }

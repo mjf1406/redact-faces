@@ -1,10 +1,41 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
+import { CircleAlert, EllipsisVertical, FolderOpen, Plus, Upload } from 'lucide-react';
+import { Page, SiteHeader } from '@/components/site-header';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { db } from '../db/db';
 import { holdProjectLock } from '../db/locks';
 import { createProject, deleteAllData, deleteProject } from '../db/projects';
 import { accuratePackEnabled } from '../engine/models';
 import type { ModelPack } from '../engine/constants';
+import type { ProjectRecord } from '../domain';
 import { LICENSE_NOTICE, PRIVACY_STATEMENT, RESPONSIBILITY } from '../gate/copy';
 import { parseBackup } from '../db/backup';
 import { importBackup } from '../scan/importBackup';
@@ -17,6 +48,9 @@ export function ProjectHome() {
   const [error, setError] = useState<string | null>(null);
   const [backupText, setBackupText] = useState<string | null>(null);
   const [importPack, setImportPack] = useState<ModelPack>('fast');
+  const [fileKey, setFileKey] = useState(0);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const lockMessage = useUi((state) => state.lockMessage);
   const setProject = useUi((state) => state.setProject);
   const setLockMessage = useUi((state) => state.setLockMessage);
@@ -36,103 +70,116 @@ export function ProjectHome() {
     setProject(id);
   }
 
+  function closeCreate(open: boolean) {
+    setCreateOpen(open);
+    if (!open) {
+      setName('');
+      setPack('fast');
+    }
+  }
+
+  function closeImport(open: boolean) {
+    setImportOpen(open);
+    if (!open) {
+      setBackupText(null);
+      setImportPack('fast');
+      setFileKey((key) => key + 1);
+    }
+  }
+
   return (
-    <main className="page">
-      <header className="top">
-        <div>
-          <p className="brand">Redact Faces</p>
-          <h1>School-year projects</h1>
+    <Page>
+      <SiteHeader title="School-year projects" />
+      <p className="text-sm text-muted-foreground">{RESPONSIBILITY}</p>
+      {lockMessage ? (
+        <Alert>
+          <AlertDescription className="text-foreground">{lockMessage}</AlertDescription>
+        </Alert>
+      ) : null}
+      {error ? (
+        <Alert variant="destructive">
+          <CircleAlert />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      <section className="grid gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-heading text-lg font-medium">Projects</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" onClick={() => setImportOpen(true)}>
+              <Upload />
+              Import
+            </Button>
+            <Button type="button" onClick={() => setCreateOpen(true)}>
+              <Plus />
+              Create project
+            </Button>
+          </div>
         </div>
-      </header>
-      <p className="responsibility">{RESPONSIBILITY}</p>
-      {lockMessage ? <p className="banner">{lockMessage}</p> : null}
-      {error ? <p className="banner danger">{error}</p> : null}
-      <section className="card">
-        <h2>New project</h2>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void createProject(name, pack)
-              .then((id) => open(id))
-              .catch((reason: unknown) =>
-                setError(
-                  reason instanceof Error ? reason.message : 'Could not create the project.',
-                ),
-              );
-          }}
-        >
-          <label>
-            School year or name
-            <input value={name} onChange={(event) => setName(event.target.value)} required />
-          </label>
-          <fieldset>
-            <legend>Model pack</legend>
-            <label>
-              <input
-                type="radio"
-                name="pack"
-                checked={pack === 'fast'}
-                onChange={() => setPack('fast')}
-              />{' '}
-              Fast
-            </label>
-            {accurate ? (
-              <label>
-                <input
-                  type="radio"
-                  name="pack"
-                  checked={pack === 'accurate'}
-                  onChange={() => setPack('accurate')}
-                />{' '}
-                Accurate
-              </label>
-            ) : null}
-          </fieldset>
-          <button type="submit">Create project</button>
-        </form>
+        {projects === undefined ? null : projects.length === 0 ? (
+          <EmptyProjects />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {projects.map((project) => (
+              <ProjectCard key={project.id} project={project} onOpen={(id) => void open(id)} />
+            ))}
+          </div>
+        )}
       </section>
-      <section className="card">
-        <h2>Projects</h2>
-        <ul className="plain">
-          {(projects ?? []).map((project) => (
-            <li key={project.id}>
-              <button type="button" onClick={() => void open(project.id)}>
-                {project.name}
-              </button>
-              <span className="muted">{project.modelPack}</span>
-              <button type="button" onClick={() => void deleteProject(project.id)}>
-                Delete project
-              </button>
-            </li>
-          ))}
-        </ul>
-        {projects?.length === 0 ? <p>No projects yet.</p> : null}
-      </section>
-      <section className="card">
-        <h2>Import a backup</h2>
-        <p>The file contains student names and consent. Treat it as sensitive data.</p>
-        <input
-          type="file"
-          accept="application/json,.json"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            void file.text().then((text) => {
-              const parsed = parseBackup(JSON.parse(text) as unknown);
-              if (!parsed.success) {
-                setError('That backup file is not valid.');
-                setBackupText(null);
-                return;
-              }
-              setBackupText(text);
-              setError(null);
-            });
-          }}
-        />
-        {backupText ? (
+      <Dialog open={createOpen} onOpenChange={closeCreate}>
+        <DialogContent>
           <form
+            className="grid gap-4"
             onSubmit={(event) => {
               event.preventDefault();
+              void createProject(name, pack)
+                .then((id) => {
+                  closeCreate(false);
+                  return open(id);
+                })
+                .catch((reason: unknown) =>
+                  setError(
+                    reason instanceof Error ? reason.message : 'Could not create the project.',
+                  ),
+                );
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Create project</DialogTitle>
+              <DialogDescription>Name the school year and choose a model pack.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-2">
+              <Label htmlFor="project-name">School year or name</Label>
+              <Input
+                id="project-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+              />
+            </div>
+            <PackChoice
+              id="new-pack"
+              legend="Model pack"
+              value={pack}
+              onChange={setPack}
+              accurate={accurate}
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => closeCreate(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Create project</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={importOpen} onOpenChange={closeImport}>
+        <DialogContent className="sm:max-w-md">
+          <form
+            className="grid gap-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!backupText) return;
               const parsed = parseBackup(JSON.parse(backupText) as unknown);
               if (!parsed.success) return;
               void window
@@ -144,6 +191,7 @@ export function ProjectHome() {
                       `Imported. These photos did not match a file: ${result.unmatched.join(', ')}`,
                     );
                   }
+                  closeImport(false);
                   await open(result.id);
                 })
                 .catch((reason: unknown) =>
@@ -151,40 +199,175 @@ export function ProjectHome() {
                 );
             }}
           >
-            <fieldset>
-              <legend>Model pack for the new embeddings</legend>
-              <label>
-                <input
-                  type="radio"
-                  checked={importPack === 'fast'}
-                  onChange={() => setImportPack('fast')}
-                />{' '}
-                Fast
-              </label>
-              {accurate ? (
-                <label>
-                  <input
-                    type="radio"
-                    checked={importPack === 'accurate'}
-                    onChange={() => setImportPack('accurate')}
-                  />{' '}
-                  Accurate
-                </label>
-              ) : null}
-            </fieldset>
-            <button type="submit">Choose photo folder and import</button>
+            <DialogHeader>
+              <DialogTitle>Import a backup</DialogTitle>
+              <DialogDescription>
+                The file contains student names and consent. Treat it as sensitive data.
+              </DialogDescription>
+            </DialogHeader>
+            <Input
+              key={fileKey}
+              type="file"
+              accept="application/json,.json"
+              aria-label="Backup file"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                void file.text().then((text) => {
+                  const parsed = parseBackup(JSON.parse(text) as unknown);
+                  if (!parsed.success) {
+                    setError('That backup file is not valid.');
+                    setBackupText(null);
+                    return;
+                  }
+                  setBackupText(text);
+                  setError(null);
+                });
+              }}
+            />
+            {backupText ? (
+              <PackChoice
+                id="import-pack"
+                legend="Model pack for the new embeddings"
+                value={importPack}
+                onChange={setImportPack}
+                accurate={accurate}
+              />
+            ) : null}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => closeImport(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!backupText}>
+                Choose photo folder and import
+              </Button>
+            </DialogFooter>
           </form>
-        ) : null}
-      </section>
-      <section className="card">
-        <h2>Delete all data</h2>
-        <DeleteAll />
-      </section>
-      <footer className="legal">
+        </DialogContent>
+      </Dialog>
+      <Card>
+        <CardHeader>
+          <CardTitle>Delete all data</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DeleteAll />
+        </CardContent>
+      </Card>
+      <footer className="grid gap-2 text-xs text-muted-foreground">
         <p>{PRIVACY_STATEMENT}</p>
         <p>{LICENSE_NOTICE}</p>
       </footer>
-    </main>
+    </Page>
+  );
+}
+
+function EmptyProjects() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed bg-muted/30 px-6 py-16 text-center">
+      <div className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <FolderOpen className="size-5" />
+      </div>
+      <div className="grid max-w-sm gap-1">
+        <p className="font-medium">No projects yet</p>
+        <p className="text-sm text-muted-foreground">
+          Create a school-year project, or import a backup to restore one.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ProjectCard({
+  project,
+  onOpen,
+}: {
+  project: ProjectRecord;
+  onOpen: (id: string) => void;
+}) {
+  const created = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(
+    project.createdAt,
+  );
+
+  return (
+    <Card className="relative transition-colors hover:bg-muted/40">
+      <button
+        type="button"
+        className="absolute inset-0 z-0 rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        onClick={() => onOpen(project.id)}
+      >
+        <span className="sr-only">Open {project.name}</span>
+      </button>
+      <CardHeader className="pointer-events-none">
+        <CardTitle className="pr-8">{project.name}</CardTitle>
+        <CardDescription>{created}</CardDescription>
+        <CardAction className="pointer-events-auto relative z-10">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Actions for ${project.name}`}
+                />
+              }
+            >
+              <EllipsisVertical />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => void deleteProject(project.id)}
+              >
+                Delete project
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="pointer-events-none">
+        <Badge variant="secondary" className="capitalize">
+          {project.modelPack}
+        </Badge>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PackChoice({
+  id,
+  legend,
+  value,
+  onChange,
+  accurate,
+}: {
+  id: string;
+  legend: string;
+  value: ModelPack;
+  onChange: (value: ModelPack) => void;
+  accurate: boolean;
+}) {
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="text-sm font-medium">{legend}</legend>
+      <RadioGroup
+        value={value}
+        onValueChange={(next) => {
+          if (next === 'fast' || next === 'accurate') onChange(next);
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <RadioGroupItem value="fast" id={`${id}-fast`} />
+          <Label htmlFor={`${id}-fast`}>Fast</Label>
+        </div>
+        {accurate ? (
+          <div className="flex items-center gap-2">
+            <RadioGroupItem value="accurate" id={`${id}-accurate`} />
+            <Label htmlFor={`${id}-accurate`}>Accurate</Label>
+          </div>
+        ) : null}
+      </RadioGroup>
+    </fieldset>
   );
 }
 
@@ -192,23 +375,30 @@ function DeleteAll() {
   const [phrase, setPhrase] = useState('');
   return (
     <form
+      className="grid gap-4"
       onSubmit={(event) => {
         event.preventDefault();
         if (phrase !== 'DELETE') return;
         void deleteAllData();
       }}
     >
-      <p>
+      <p className="text-sm text-muted-foreground">
         This deletes projects, names, consent, and folder access on this browser. Model downloads
         stay cached.
       </p>
-      <label>
-        Type DELETE
-        <input value={phrase} onChange={(event) => setPhrase(event.target.value)} />
-      </label>
-      <button type="submit" disabled={phrase !== 'DELETE'}>
-        Delete all data
-      </button>
+      <div className="grid gap-2">
+        <Label htmlFor="delete-phrase">Type DELETE</Label>
+        <Input
+          id="delete-phrase"
+          value={phrase}
+          onChange={(event) => setPhrase(event.target.value)}
+        />
+      </div>
+      <div>
+        <Button type="submit" variant="destructive" disabled={phrase !== 'DELETE'}>
+          Delete all data
+        </Button>
+      </div>
     </form>
   );
 }

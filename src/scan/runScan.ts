@@ -1,3 +1,4 @@
+import { proxy } from 'comlink';
 import { db } from '../db/db';
 import { getEngine } from '../engine/engineClient';
 import { embeddingModelId } from '../engine/models';
@@ -33,14 +34,19 @@ export async function scanProject(projectId: string) {
   });
   try {
     const engine = getEngine();
-    await engine.init(project.modelPack, (update) => {
-      useUi.setState((state) => ({
-        scan: {
-          ...state.scan,
-          current: `Loading ${update.file} (${update.loaded} / ${update.total || '?'})`,
-        },
-      }));
-    });
+    await engine.init(
+      project.modelPack,
+      proxy((update: { file: string; loaded: number; total: number }) => {
+        const percent =
+          update.total > 0 ? Math.min(100, Math.round((update.loaded / update.total) * 100)) : 0;
+        useUi.setState((state) => ({
+          scan: {
+            ...state.scan,
+            current: `Loading ${update.file} (${percent}%)`,
+          },
+        }));
+      }),
+    );
     const images = await collectImages(project.dirHandle);
     const existing = await db.photos.where('projectId').equals(projectId).toArray();
     const byPath = new Map(existing.map((photo) => [photo.relPath, photo]));

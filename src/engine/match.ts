@@ -60,3 +60,17 @@ export function suggestAll(
 export function cosine(a: ArrayLike<number>, b: ArrayLike<number>) {
   return dot(a, b);
 }
+
+export function suggestExcluding(
+  face: ArrayLike<number>,
+  students: { id: string; embeddings: ArrayLike<number>[] }[],
+  rejectedIds: readonly string[],
+  threshold: number,
+  margin: number,
+) {
+  const rejected = new Set(rejectedIds);
+  const galleries = students
+    .filter((student) => !rejected.has(student.id) && student.embeddings.length > 0)
+    .map((student) => galleryFromEmbeddings(student.id, student.embeddings));
+  return suggestStudent(face, galleries, threshold, margin);
+}

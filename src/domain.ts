@@ -69,6 +69,8 @@ export type FaceRecord = {
   suggestedStudentId: string | null;
   suggestionScore: number | null;
   source: FaceSource;
+  rejectedStudentIds?: string[];
+  bundleId?: string | null;
 };
 
 export type RedactFace = Pick<

@@ -1,10 +1,20 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { cn } from '@/lib/utils';
 import { db } from '../db/db';
 import { addStudent, assignFaces, confirmSuggestion, markFaces } from '../db/mutate';
 import { clusterUnassigned } from '../scan/suggestions';
 import { useUi } from './store';
+import { Crop } from './crop';
 import { VirtualGrid, VirtualRows } from './virtual';
+
+const pressed =
+  'aria-pressed:bg-primary aria-pressed:text-primary-foreground hover:aria-pressed:bg-primary/80';
 
 export function LabelTab({ projectId }: { projectId: string }) {
   const faces =
@@ -56,28 +66,27 @@ export function LabelTab({ projectId }: { projectId: string }) {
   }
 
   return (
-    <section>
-      <div className="row">
-        <button
-          type="button"
-          aria-pressed={mode === 'clusters'}
-          onClick={() => setMode('clusters')}
-        >
+    <section className="grid gap-4">
+      <ToggleGroup
+        variant="outline"
+        value={[mode]}
+        onValueChange={(values) => {
+          const next = values[0];
+          if (next === 'clusters' || next === 'suggested' || next === 'review') setMode(next);
+        }}
+      >
+        <ToggleGroupItem value="clusters" className={pressed}>
           Clusters
-        </button>
-        <button
-          type="button"
-          aria-pressed={mode === 'suggested'}
-          onClick={() => setMode('suggested')}
-        >
+        </ToggleGroupItem>
+        <ToggleGroupItem value="suggested" className={pressed}>
           Suggested
-        </button>
-        <button type="button" aria-pressed={mode === 'review'} onClick={() => setMode('review')}>
+        </ToggleGroupItem>
+        <ToggleGroupItem value="review" className={pressed}>
           Needs review
-        </button>
-      </div>
+        </ToggleGroupItem>
+      </ToggleGroup>
       {mode === 'clusters' ? (
-        <div className="list-frame tall">
+        <div className="h-[640px]">
           <VirtualGrid items={groups} height={640} width={960} columnWidth={300} rowHeight={430}>
             {(ids) => {
               const shown = ids
@@ -87,45 +96,58 @@ export function LabelTab({ projectId }: { projectId: string }) {
               const chosen = ids.filter((id) => selected.includes(id));
               const target = chosen.length > 0 ? chosen : ids;
               return (
-                <article className="cluster">
-                  <p>
-                    {ids.length} faces{chosen.length > 0 ? ` · ${chosen.length} selected` : ''}
-                  </p>
-                  <div className="crops">
-                    {shown.map((face) => (
-                      <button
+                <Card className="m-1">
+                  <CardContent className="grid gap-2">
+                    <p className="text-sm">
+                      {ids.length} faces{chosen.length > 0 ? ` · ${chosen.length} selected` : ''}
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {shown.map((face) => (
+                        <Button
+                          type="button"
+                          key={face.id}
+                          variant="outline"
+                          className={cn(
+                            'size-16 overflow-hidden p-0',
+                            selected.includes(face.id) && 'ring-2 ring-primary',
+                          )}
+                          onClick={(event) => toggleSelected(face.id, event.shiftKey ? ids : null)}
+                        >
+                          {face.crop ? <Crop blob={face.crop} /> : <span>No crop</span>}
+                        </Button>
+                      ))}
+                    </div>
+                    <Input
+                      list="student-names"
+                      aria-label="Student name"
+                      placeholder="Name, then Enter"
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter') return;
+                        event.preventDefault();
+                        void nameGroup(target, event.currentTarget.value);
+                        event.currentTarget.value = '';
+                      }}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
                         type="button"
-                        key={face.id}
-                        className={selected.includes(face.id) ? 'crop selected' : 'crop'}
-                        onClick={(event) => toggleSelected(face.id, event.shiftKey ? ids : null)}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void markFaces(projectId, target, 'safe')}
                       >
-                        {face.crop ? <Crop blob={face.crop} /> : <span>No crop</span>}
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    list="student-names"
-                    aria-label="Student name"
-                    placeholder="Name, then Enter"
-                    onKeyDown={(event) => {
-                      if (event.key !== 'Enter') return;
-                      event.preventDefault();
-                      void nameGroup(target, event.currentTarget.value);
-                      event.currentTarget.value = '';
-                    }}
-                  />
-                  <div className="row">
-                    <button type="button" onClick={() => void markFaces(projectId, target, 'safe')}>
-                      Not a student / OK to show
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void markFaces(projectId, target, 'falsePositive')}
-                    >
-                      Not a face
-                    </button>
-                  </div>
-                </article>
+                        Not a student / OK to show
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void markFaces(projectId, target, 'falsePositive')}
+                      >
+                        Not a face
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               );
             }}
           </VirtualGrid>
@@ -137,10 +159,11 @@ export function LabelTab({ projectId }: { projectId: string }) {
         </div>
       ) : null}
       {mode === 'suggested' ? (
-        <div>
-          <label>
-            Accept all at or above
-            <input
+        <div className="grid gap-3">
+          <div className="grid gap-2">
+            <Label htmlFor="accept-at">Accept all at or above</Label>
+            <Input
+              id="accept-at"
               type="number"
               min={0.25}
               max={0.7}
@@ -148,34 +171,45 @@ export function LabelTab({ projectId }: { projectId: string }) {
               value={acceptAt}
               onChange={(event) => setAcceptAt(Number(event.target.value))}
             />
-          </label>
-          <p>
+          </div>
+          <p className="text-sm">
             {above.length} suggestions. Sample:{' '}
             {above
               .slice(0, 8)
               .map((face) => studentName(students, face.suggestedStudentId))
               .join(', ') || 'none'}
           </p>
-          <button
-            type="button"
-            onClick={() =>
-              void Promise.all(above.map((face) => confirmSuggestion(projectId, face.id)))
-            }
-          >
-            Accept all above {acceptAt}
-          </button>
-          <div className="list-frame">
+          <div>
+            <Button
+              type="button"
+              onClick={() =>
+                void Promise.all(above.map((face) => confirmSuggestion(projectId, face.id)))
+              }
+            >
+              Accept all above {acceptAt}
+            </Button>
+          </div>
+          <div className="h-[420px]">
             <VirtualRows items={suggested} rowHeight={72} height={420}>
               {(face) => (
-                <div className="list-row">
-                  {face.crop ? <Crop blob={face.crop} /> : null}
-                  <span>
+                <div className="flex h-full flex-wrap items-center gap-2">
+                  {face.crop ? (
+                    <div className="size-12 overflow-hidden rounded-md border">
+                      <Crop blob={face.crop} />
+                    </div>
+                  ) : null}
+                  <span className="text-sm">
                     {studentName(students, face.suggestedStudentId)} ·{' '}
                     {(face.suggestionScore ?? 0).toFixed(2)}
                   </span>
-                  <button type="button" onClick={() => void confirmSuggestion(projectId, face.id)}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void confirmSuggestion(projectId, face.id)}
+                  >
                     Confirm
-                  </button>
+                  </Button>
                 </div>
               )}
             </VirtualRows>
@@ -183,10 +217,10 @@ export function LabelTab({ projectId }: { projectId: string }) {
         </div>
       ) : null}
       {mode === 'review' ? (
-        <div className="list-frame">
+        <div className="h-[480px]">
           <VirtualRows items={needsReview} rowHeight={64} height={480}>
             {(face) => (
-              <div className="list-row">
+              <div className="flex h-full items-center text-sm">
                 <span>
                   {face.state}
                   {face.lowConfidence ? ' · low confidence' : ''} · {face.score.toFixed(2)}
@@ -202,14 +236,4 @@ export function LabelTab({ projectId }: { projectId: string }) {
 
 function studentName(students: { id: string; name: string }[], id: string | null) {
   return students.find((student) => student.id === id)?.name ?? 'Unknown';
-}
-
-function Crop({ blob }: { blob: Blob }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    const next = URL.createObjectURL(blob);
-    setUrl(next);
-    return () => URL.revokeObjectURL(next);
-  }, [blob]);
-  return url ? <img src={url} alt="" /> : null;
 }

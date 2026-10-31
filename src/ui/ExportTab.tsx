@@ -1,5 +1,25 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { SliderField } from '@/components/slider-field';
 import { db } from '../db/db';
 import { updateSettings } from '../db/projects';
 import type { ExportSummary } from '../export/runExport';
@@ -18,13 +38,14 @@ export function ExportTab({ projectId }: { projectId: string }) {
   const students =
     useLiveQuery(() => db.students.where('projectId').equals(projectId).toArray(), [projectId]) ??
     [];
-  const setTab = useUi((state) => state.setTab);
+  const setStep = useUi((state) => state.setStep);
   const setReviewIndex = useUi((state) => state.setReviewIndex);
   const [summary, setSummary] = useState<ExportSummary | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
   const cancelRef = useRef(false);
   const [phrase, setPhrase] = useState('');
   const [alsoUnresolved, setAlsoUnresolved] = useState(false);
+  const [overrideOpen, setOverrideOpen] = useState(false);
   const blockers = exportBlockers({ photos, faces, students });
   const unset = students.filter((student) => student.consent == null).length;
   const ready = canExport({ photos, faces, students });
@@ -71,11 +92,12 @@ export function ExportTab({ projectId }: { projectId: string }) {
         }).length > 0,
     ),
   );
+  const dimension = String(project.settings.maxExportDimension ?? 'original');
 
   return (
-    <section>
-      <p className="responsibility">{RESPONSIBILITY}</p>
-      <ul>
+    <section className="grid gap-4">
+      <p className="text-sm text-muted-foreground">{RESPONSIBILITY}</p>
+      <ul className="list-disc space-y-1 pl-5 text-sm">
         <li>
           {blockers.photosNotDone.length === 0
             ? 'Scan complete.'
@@ -88,63 +110,59 @@ export function ExportTab({ projectId }: { projectId: string }) {
           are never exported.
         </li>
       </ul>
-      <label>
-        Redaction padding {project.settings.redactionPadding.toFixed(2)}
-        <input
-          type="range"
-          min={0}
-          max={0.8}
-          step={0.01}
-          value={project.settings.redactionPadding}
-          onChange={(event) =>
-            void updateSettings(projectId, { redactionPadding: Number(event.target.value) })
-          }
-        />
-      </label>
+      <SliderField
+        label="Redaction padding"
+        min={0}
+        max={0.8}
+        value={project.settings.redactionPadding}
+        onChange={(redactionPadding) => void updateSettings(projectId, { redactionPadding })}
+      />
       {sample?.photo.thumb ? (
         <Sample photo={sample.photo} rects={sample.rects} />
       ) : (
-        <p>Scan a photo to preview padding.</p>
+        <p className="text-sm text-muted-foreground">Scan a photo to preview padding.</p>
       )}
-      <label>
-        JPEG quality {project.settings.jpegQuality.toFixed(2)}
-        <input
-          type="range"
-          min={0.6}
-          max={0.95}
-          step={0.01}
-          value={project.settings.jpegQuality}
-          onChange={(event) =>
-            void updateSettings(projectId, { jpegQuality: Number(event.target.value) })
-          }
-        />
-      </label>
-      <label>
-        Max long side
-        <select
-          value={project.settings.maxExportDimension ?? 'original'}
-          onChange={(event) => {
-            const value = event.target.value;
+      <SliderField
+        label="JPEG quality"
+        min={0.6}
+        max={0.95}
+        value={project.settings.jpegQuality}
+        onChange={(jpegQuality) => void updateSettings(projectId, { jpegQuality })}
+      />
+      <div className="grid gap-2">
+        <Label htmlFor="max-side">Max long side</Label>
+        <Select
+          value={dimension}
+          onValueChange={(value) => {
+            if (value !== 'original' && value !== '3840' && value !== '2560' && value !== '1920') {
+              return;
+            }
             void updateSettings(projectId, {
               maxExportDimension:
                 value === 'original' ? null : (Number(value) as 3840 | 2560 | 1920),
             });
           }}
         >
-          <option value="original">Original</option>
-          <option value="3840">3840</option>
-          <option value="2560">2560</option>
-          <option value="1920">1920</option>
-        </select>
-      </label>
-      <h2>Review redacted photos</h2>
-      <ul className="plain">
+          <SelectTrigger id="max-side" className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="original">Original</SelectItem>
+            <SelectItem value="3840">3840</SelectItem>
+            <SelectItem value="2560">2560</SelectItem>
+            <SelectItem value="1920">1920</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <h2 className="font-heading text-base font-medium">Review redacted photos</h2>
+      <ul className="grid list-none gap-2 p-0">
         {redactedPhotos.map((photo) => (
           <li key={photo.id}>
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => {
-                setTab('review');
+                setStep('review');
                 const ordered = [...photos].sort((a, b) => a.relPath.localeCompare(b.relPath));
                 setReviewIndex(
                   Math.max(
@@ -155,39 +173,40 @@ export function ExportTab({ projectId }: { projectId: string }) {
               }}
             >
               {photo.relPath}
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
-      <div className="row">
-        <button type="button" disabled={!ready} onClick={() => void start(false)}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" disabled={!ready} onClick={() => void start(false)}>
           Export
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           disabled={!override}
           onClick={() => {
             setPhrase('');
             setAlsoUnresolved(false);
-            document.querySelector<HTMLDialogElement>('#export-override')?.showModal();
+            setOverrideOpen(true);
           }}
         >
           Export anyway…
-        </button>
+        </Button>
         {progress ? (
-          <button type="button" onClick={() => (cancelRef.current = true)}>
+          <Button type="button" variant="outline" onClick={() => (cancelRef.current = true)}>
             Cancel export
-          </button>
+          </Button>
         ) : null}
       </div>
-      {progress ? <p>{progress}</p> : null}
+      {progress ? <p className="text-sm text-muted-foreground">{progress}</p> : null}
       {summary ? (
-        <div>
+        <div className="grid gap-2 text-sm">
           <p>
             Exported {summary.exported}. Faces redacted {summary.facesRedacted}.
             {summary.cancelled ? ' Cancelled.' : ''}
           </p>
-          <ul>
+          <ul className="list-disc space-y-1 pl-5">
             {summary.skipped.map((item) => (
               <li key={item.relPath}>
                 Skipped {item.relPath}: {item.reason}
@@ -196,45 +215,51 @@ export function ExportTab({ projectId }: { projectId: string }) {
           </ul>
         </div>
       ) : null}
-      <dialog id="export-override">
-        <form
-          method="dialog"
-          onSubmit={(event) => {
-            if (phrase !== 'EXPORT') {
+      <Dialog open={overrideOpen} onOpenChange={setOverrideOpen}>
+        <DialogContent>
+          <form
+            className="grid gap-4"
+            onSubmit={(event) => {
               event.preventDefault();
-              return;
-            }
-            void start(alsoUnresolved);
-          }}
-        >
-          <h2>Unresolved faces will stay visible</h2>
-          <p>
-            {blockers.unresolvedFaceIds.length} faces are unresolved. They will not be blacked out
-            unless you tick the box. Type EXPORT to continue.
-          </p>
-          <label>
-            <input
-              type="checkbox"
-              checked={alsoUnresolved}
-              onChange={(event) => setAlsoUnresolved(event.target.checked)}
-            />{' '}
-            Also black out unresolved faces
-          </label>
-          <label>
-            Type EXPORT
-            <input value={phrase} onChange={(event) => setPhrase(event.target.value)} />
-          </label>
-          <button type="submit" disabled={phrase !== 'EXPORT'}>
-            Export
-          </button>
-          <button
-            type="button"
-            onClick={() => document.querySelector<HTMLDialogElement>('#export-override')?.close()}
+              if (phrase !== 'EXPORT') return;
+              setOverrideOpen(false);
+              void start(alsoUnresolved);
+            }}
           >
-            Cancel
-          </button>
-        </form>
-      </dialog>
+            <DialogHeader>
+              <DialogTitle>Unresolved faces will stay visible</DialogTitle>
+              <DialogDescription>
+                {blockers.unresolvedFaceIds.length} faces are unresolved. They will not be blacked
+                out unless you tick the box. Type EXPORT to continue.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="also-unresolved"
+                checked={alsoUnresolved}
+                onCheckedChange={(checked) => setAlsoUnresolved(checked)}
+              />
+              <Label htmlFor="also-unresolved">Also black out unresolved faces</Label>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="export-phrase">Type EXPORT</Label>
+              <Input
+                id="export-phrase"
+                value={phrase}
+                onChange={(event) => setPhrase(event.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={phrase !== 'EXPORT'}>
+                Export
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setOverrideOpen(false)}>
+                Cancel
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
@@ -255,12 +280,12 @@ function Sample({
   }, [photo.thumb]);
   if (!url) return null;
   return (
-    <div className="stage sample">
-      <img src={url} alt="Padding preview" />
+    <div className="relative inline-block max-w-[280px]">
+      <img src={url} alt="Padding preview" className="block h-auto w-full" />
       {rects.map((rect, index) => (
         <div
           key={index}
-          className="blackout"
+          className="pointer-events-none absolute bg-black"
           style={{
             left: `${(rect.x / photo.width) * 100}%`,
             top: `${(rect.y / photo.height) * 100}%`,

@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import type { ExportSummary } from '../export/runExport';
 
-export type TabId = 'photos' | 'people' | 'label' | 'review' | 'export' | 'settings';
+export type WizardStep =
+  'photos' | 'names' | 'guesses' | 'permission' | 'review' | 'export' | 'settings';
 
 export type ScanState = {
   running: boolean;
@@ -14,7 +15,7 @@ export type ScanState = {
 
 type UiState = {
   projectId: string | null;
-  tab: TabId;
+  step: WizardStep;
   warnSlow: boolean;
   medianMs: number | null;
   deviceLost: string | null;
@@ -24,7 +25,7 @@ type UiState = {
   reviewFilter: 'all' | 'unresolved' | 'redactions' | 'errors';
   reviewIndex: number;
   setProject: (projectId: string | null) => void;
-  setTab: (tab: TabId) => void;
+  setStep: (step: WizardStep) => void;
   setWarn: (warnSlow: boolean, medianMs: number | null) => void;
   setDeviceLost: (deviceLost: string | null) => void;
   setLockMessage: (lockMessage: string | null) => void;
@@ -45,7 +46,7 @@ const idleScan: ScanState = {
 
 export const useUi = create<UiState>((set) => ({
   projectId: null,
-  tab: 'photos',
+  step: 'photos',
   warnSlow: false,
   medianMs: null,
   deviceLost: null,
@@ -54,8 +55,9 @@ export const useUi = create<UiState>((set) => ({
   selectedFaceIds: [],
   reviewFilter: 'all',
   reviewIndex: 0,
-  setProject: (projectId) => set({ projectId, tab: 'photos', selectedFaceIds: [], reviewIndex: 0 }),
-  setTab: (tab) => set({ tab }),
+  setProject: (projectId) =>
+    set({ projectId, step: 'photos', selectedFaceIds: [], reviewIndex: 0 }),
+  setStep: (step) => set({ step }),
   setWarn: (warnSlow, medianMs) => set({ warnSlow, medianMs }),
   setDeviceLost: (deviceLost) => set({ deviceLost }),
   setLockMessage: (lockMessage) => set({ lockMessage }),

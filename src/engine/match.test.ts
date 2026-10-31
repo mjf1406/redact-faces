@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { suggestStudent, top3Mean, galleryFromEmbeddings } from './match';
+import { suggestExcluding, suggestStudent, top3Mean, galleryFromEmbeddings } from './match';
 
 function unit(index: number, dim = 8) {
   const values = new Float32Array(dim);
@@ -35,5 +35,19 @@ describe('matching', () => {
       0.5,
     );
     expect(suggestion).toBeNull();
+  });
+
+  it('skips a rejected student and uses the next match', () => {
+    const suggestion = suggestExcluding(
+      unit(0),
+      [
+        { id: 'ada', embeddings: [unit(0)] },
+        { id: 'alan', embeddings: [unit(0)] },
+      ],
+      ['ada'],
+      0.4,
+      0.05,
+    );
+    expect(suggestion).toEqual({ studentId: 'alan', score: 1 });
   });
 });

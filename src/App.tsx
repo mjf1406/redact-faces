@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { onDeviceLost } from './gate/device';
 import { runCapabilityGate, type GateFailure, type GateSuccess } from './gate/runGate';
 import { cancelScan } from './scan/runScan';
+import { Page, SiteHeader } from '@/components/site-header';
 import { GateScreen } from './ui/GateScreen';
 import { ProjectHome } from './ui/ProjectHome';
 import { useUi } from './ui/store';
@@ -42,9 +43,9 @@ export function App() {
 
   if (gate.status === 'checking') {
     return (
-      <main className="gate">
-        <h1>Checking this browser…</h1>
-      </main>
+      <Page>
+        <SiteHeader title="Checking this browser…" />
+      </Page>
     );
   }
   if (gate.status === 'blocked') {

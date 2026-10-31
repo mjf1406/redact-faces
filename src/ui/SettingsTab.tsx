@@ -1,5 +1,15 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { SliderField } from '@/components/slider-field';
 import { db } from '../db/db';
 import { updateSettings } from '../db/projects';
 import { confirmedSimilarities } from '../engine/calibrate';
@@ -93,48 +103,56 @@ export function SettingsTab({ projectId }: { projectId: string }) {
   }
 
   return (
-    <section>
-      <label>
-        Detection mode
-        <select
+    <section className="grid max-w-xl gap-4">
+      <div className="grid gap-2">
+        <Label htmlFor="detection-mode">Detection mode</Label>
+        <Select
           value={settings.detectionMode}
-          onChange={(event) =>
-            void updateSettings(projectId, { detectionMode: event.target.value as DetectionMode })
-          }
+          onValueChange={(value) => {
+            if (value === 'fast' || value === 'thorough' || value === 'maximum') {
+              void updateSettings(projectId, { detectionMode: value as DetectionMode });
+            }
+          }}
         >
-          <option value="fast">Fast</option>
-          <option value="thorough">Thorough</option>
-          <option value="maximum">Maximum</option>
-        </select>
-      </label>
-      <Slider
+          <SelectTrigger id="detection-mode" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="fast">Fast</SelectItem>
+            <SelectItem value="thorough">Thorough</SelectItem>
+            <SelectItem value="maximum">Maximum</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <SliderField
         label="Suggest threshold (untuned)"
         min={SUGGEST_THRESHOLD_MIN}
         max={SUGGEST_THRESHOLD_MAX}
         value={settings.suggestThreshold}
         onChange={(suggestThreshold) => void updateSettings(projectId, { suggestThreshold })}
       />
-      <Slider
+      <SliderField
         label="Suggest margin (untuned)"
         min={0}
         max={0.3}
         value={settings.suggestMargin}
         onChange={(suggestMargin) => void updateSettings(projectId, { suggestMargin })}
       />
-      <Slider
+      <SliderField
         label="Cluster threshold (untuned)"
         min={SUGGEST_THRESHOLD_MIN}
         max={SUGGEST_THRESHOLD_MAX}
         value={settings.clusterThreshold}
         onChange={(clusterThreshold) => void updateSettings(projectId, { clusterThreshold })}
       />
-      <p>{storage}</p>
-      <div className="row">
-        <button type="button" onClick={downloadBackup}>
+      <p className="text-sm text-muted-foreground">{storage}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" onClick={downloadBackup}>
           Download backup
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           onClick={() =>
             void clearModelCache()
               .then(() => restartEngine())
@@ -144,10 +162,11 @@ export function SettingsTab({ projectId }: { projectId: string }) {
           }
         >
           Clear model cache
-        </button>
+        </Button>
         {accuratePackEnabled() || saved.modelPack === 'accurate' ? (
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() =>
               void reembedProject(projectId, saved.modelPack === 'fast' ? 'accurate' : 'fast').then(
                 () => setMessage('Embeddings were recomputed.'),
@@ -155,64 +174,39 @@ export function SettingsTab({ projectId }: { projectId: string }) {
             }
           >
             Switch model pack and recompute embeddings
-          </button>
+          </Button>
         ) : null}
       </div>
-      <p>
+      <p className="text-sm text-muted-foreground">
         The backup contains student names and consent. Treat the file as sensitive data. It does not
         contain embeddings.
       </p>
-      {message ? <p>{message}</p> : null}
-      <h2>Matching calibration</h2>
+      {message ? <p className="text-sm">{message}</p> : null}
+      <h2 className="font-heading text-base font-medium">Matching calibration</h2>
       {calibration ? (
-        <div className="histograms">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Hist title="Same student" counts={calibration.sameBins} />
           <Hist title="Different students" counts={calibration.differentBins} />
         </div>
       ) : (
-        <p>Label at least two students with three confirmed faces each to compare similarities.</p>
+        <p className="text-sm text-muted-foreground">
+          Label at least two students with three confirmed faces each to compare similarities.
+        </p>
       )}
     </section>
-  );
-}
-
-function Slider({
-  label,
-  min,
-  max,
-  value,
-  onChange,
-}: {
-  label: string;
-  min: number;
-  max: number;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label>
-      {label} {value.toFixed(2)}
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={0.01}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-    </label>
   );
 }
 
 function Hist({ title, counts }: { title: string; counts: number[] }) {
   const peak = Math.max(1, ...counts);
   return (
-    <div>
-      <h3>{title}</h3>
-      <div className="hist">
+    <div className="grid gap-2">
+      <h3 className="text-sm font-medium">{title}</h3>
+      <div className="flex h-32 items-end gap-0.5 border-b">
         {counts.map((count, index) => (
           <div
             key={index}
+            className="min-h-0.5 flex-1 bg-primary"
             style={{ height: `${(count / peak) * 100}%` }}
             title={`${index / 10}–${(index + 1) / 10}: ${count}`}
           />
